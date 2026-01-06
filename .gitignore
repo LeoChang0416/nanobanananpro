@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+server/storage/images/
+server/storage/metadata.json
+*.log
+.DS_Store
+
