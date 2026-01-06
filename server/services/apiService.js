@@ -133,6 +133,13 @@ const pollForResult = async (taskId, maxRetries = 60, interval = 2000) => {
         throw new Error('内容审核未通过，请修改提示词或参考图')
       }
       
+      // 其他明确的错误类型也直接失败
+      if (error.message === 'error' || 
+          error.message.includes('生图失败') ||
+          error.message.includes('Invalid')) {
+        throw error
+      }
+      
       console.error(`轮询出错 (第${i + 1}次):`, error.message)
       if (i === maxRetries - 1) {
         throw error

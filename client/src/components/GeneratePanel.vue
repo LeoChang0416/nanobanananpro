@@ -8,7 +8,13 @@
     <div class="form">
       <div class="form-group">
         <label class="label">参考图（可选，最多20张）</label>
-        <div class="upload-area" @click="triggerUpload" @dragover.prevent @drop.prevent="handleDrop">
+        <div 
+          class="upload-area" 
+          :class="{ disabled: loading }"
+          @click="!loading && triggerUpload()" 
+          @dragover.prevent 
+          @drop.prevent="!loading && handleDrop($event)"
+        >
           <input 
             ref="fileInputRef"
             type="file" 
@@ -125,9 +131,18 @@ const handleDrop = (e) => {
   processFiles(files)
 }
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+
 const processFiles = async (files) => {
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-  const validFiles = files.filter(f => validTypes.includes(f.type))
+  const validFiles = files.filter(f => {
+    if (!validTypes.includes(f.type)) return false
+    if (f.size > MAX_FILE_SIZE) {
+      alert(`文件 ${f.name} 超过10MB限制，已跳过`)
+      return false
+    }
+    return true
+  })
   
   const remaining = MAX_IMAGES - referenceImages.value.length
   const filesToProcess = validFiles.slice(0, remaining)
@@ -236,9 +251,15 @@ const handleGenerate = () => {
   min-height: 120px;
 }
 
-.upload-area:hover {
+.upload-area:hover:not(.disabled) {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
+}
+
+.upload-area.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .file-input {
