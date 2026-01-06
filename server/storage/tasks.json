@@ -1,0 +1,67 @@
+[
+  {
+    "id": "task_1767711167912_k8mnu4lnl",
+    "prompt": "一个可爱的小猫",
+    "aspectRatio": "auto",
+    "imageSize": "1K",
+    "hasReferenceImages": false,
+    "status": "succeeded",
+    "progress": 100,
+    "error": null,
+    "result": {
+      "images": [
+        {
+          "id": "1767711244837_0",
+          "prompt": "一个可爱的小猫",
+          "aspectRatio": "auto",
+          "imageSize": "1K",
+          "filename": "1767711244837_0.png",
+          "url": "/storage/images/1767711244837_0.png",
+          "remoteUrl": "https://p-lark-file-tos-sign.byteimg.com/file/1767711244837_0.png?lk3s=872c6769&x-expires=1767711244&x-signature=signature",
+          "createdAt": 1767711244837
+        }
+      ]
+    },
+    "createdAt": 1767711167912,
+    "updatedAt": 1767711244839
+  },
+  {
+    "id": "task_1767711375682_k2hf8w6ct",
+    "prompt": "一个可爱的小猫",
+    "aspectRatio": "auto",
+    "imageSize": "1K",
+    "hasReferenceImages": false,
+    "status": "succeeded",
+    "progress": 100,
+    "error": null,
+    "result": {
+      "images": [
+        {
+          "id": "1767711413723_0",
+          "prompt": "一个可爱的小猫",
+          "aspectRatio": "auto",
+          "imageSize": "1K",
+          "filename": "1767711413723_0.png",
+          "url": "/storage/images/1767711413723_0.png",
+          "remoteUrl": "https://p-lark-file-tos-sign.byteimg.com/file/1767711413723_0.png?lk3s=872c6769&x-expires=1767711413&x-signature=signature",
+          "createdAt": 1767711413723
+        }
+      ]
+    },
+    "createdAt": 1767711375682,
+    "updatedAt": 1767711413724
+  },
+  {
+    "id": "task_1767712712596_0ixvpnrzl",
+    "prompt": "test task robustness",
+    "aspectRatio": "auto",
+    "imageSize": "1K",
+    "hasReferenceImages": false,
+    "status": "cancelled",
+    "progress": 0,
+    "error": "任务已取消",
+    "result": null,
+    "createdAt": 1767712712596,
+    "updatedAt": 1767712729149
+  }
+]

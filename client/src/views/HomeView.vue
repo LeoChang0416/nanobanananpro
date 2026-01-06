@@ -16,6 +16,7 @@
               :task="task"
               @remove="store.removeTask"
               @retry="store.retryTask"
+              @cancel="store.cancelTask"
             />
           </div>
         </section>
@@ -44,7 +45,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useImageStore } from '../stores/image'
 import AppHeader from '../components/AppHeader.vue'
 import GeneratePanel from '../components/GeneratePanel.vue'
@@ -60,7 +61,6 @@ const selectedImage = ref(null)
 const recentImages = computed(() => store.images.slice(0, 8))
 
 const handleGenerate = async (params) => {
-  // 创建任务，不阻塞，直接返回
   store.createTask(params)
 }
 
@@ -80,7 +80,11 @@ const handleDelete = async (id) => {
 }
 
 onMounted(() => {
-  store.fetchImages()
+  store.init()
+})
+
+onUnmounted(() => {
+  store.stopPolling()
 })
 </script>
 

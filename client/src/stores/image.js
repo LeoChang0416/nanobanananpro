@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { imageAPI } from '../api'
+import { ref, onUnmounted } from 'vue'
+import { imageAPI, taskAPI } from '../api'
 
 export const useImageStore = defineStore('image', () => {
   const images = ref([])
   const loading = ref(false)
-  const tasks = ref([]) // 并发任务队列
+  const tasks = ref([])
+  let pollingTimer = null
 
+  // 获取图片列表
   const fetchImages = async () => {
     loading.value = true
     try {
@@ -19,66 +21,113 @@ export const useImageStore = defineStore('image', () => {
     }
   }
 
-  // 创建任务并开始生成（支持多并发）
-  const createTask = async (params) => {
-    const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    
-    const task = {
-      id: taskId,
-      prompt: params.prompt,
-      aspectRatio: params.aspectRatio,
-      imageSize: params.imageSize,
-      status: 'pending', // pending / running / succeeded / failed
-      progress: 0,
-      error: null,
-      createdAt: Date.now()
+  // 获取任务列表
+  const fetchTasks = async () => {
+    try {
+      const data = await taskAPI.getAll()
+      tasks.value = data.tasks || []
+    } catch (error) {
+      console.error('获取任务列表失败:', error)
     }
-    
-    tasks.value.unshift(task)
-    
-    // 异步执行，不阻塞
-    executeTask(taskId, params)
-    
-    return taskId
   }
 
-  // 执行任务
-  const executeTask = async (taskId, params) => {
-    const task = tasks.value.find(t => t.id === taskId)
-    if (!task) return
-
-    task.status = 'running'
-    task.progress = 5
-
-    try {
-      console.log('开始执行任务:', taskId)
-      const data = await imageAPI.generate(params)
-      console.log('任务完成:', taskId, data)
-
-      task.status = 'succeeded'
-      task.progress = 100
-
-      if (data.images && data.images.length > 0) {
-        data.images.forEach(img => {
-          images.value.unshift(img)
+  // 启动轮询
+  const startPolling = () => {
+    if (pollingTimer) return
+    
+    pollingTimer = setInterval(async () => {
+      const activeTasks = tasks.value.filter(t => 
+        t.status === 'pending' || t.status === 'running'
+      )
+      
+      if (activeTasks.length === 0) return
+      
+      try {
+        const data = await taskAPI.getAll()
+        const newTasks = data.tasks || []
+        
+        // 更新任务状态
+        newTasks.forEach(newTask => {
+          const index = tasks.value.findIndex(t => t.id === newTask.id)
+          if (index > -1) {
+            const oldTask = tasks.value[index]
+            
+            // 如果状态变为成功，刷新图片列表
+            if (oldTask.status !== 'succeeded' && newTask.status === 'succeeded') {
+              fetchImages()
+              // 3秒后自动移除成功的任务
+              setTimeout(() => {
+                removeTask(newTask.id)
+              }, 3000)
+            }
+            
+            tasks.value[index] = newTask
+          } else {
+            tasks.value.push(newTask)
+          }
         })
+        
+        // 删除已不存在的任务
+        tasks.value = tasks.value.filter(t => 
+          newTasks.some(nt => nt.id === t.id) || 
+          (t.status !== 'pending' && t.status !== 'running')
+        )
+      } catch (error) {
+        console.error('轮询任务失败:', error)
       }
+    }, 2000)
+  }
 
-      // 3秒后移除成功的任务卡片
-      setTimeout(() => {
-        removeTask(taskId)
-      }, 3000)
+  // 停止轮询
+  const stopPolling = () => {
+    if (pollingTimer) {
+      clearInterval(pollingTimer)
+      pollingTimer = null
+    }
+  }
 
+  // 创建任务
+  const createTask = async (params) => {
+    try {
+      const data = await imageAPI.generate(params)
+      
+      if (data.task) {
+        tasks.value.unshift(data.task)
+      }
+      
+      // 确保轮询运行
+      startPolling()
+      
+      return data.taskId
     } catch (error) {
-      console.error('任务失败:', taskId, error)
-      task.status = 'failed'
-      task.progress = 0
-      task.error = error.response?.data?.message || error.message || '生成失败'
+      console.error('创建任务失败:', error)
+      throw error
+    }
+  }
+
+  // 取消任务
+  const cancelTask = async (taskId) => {
+    try {
+      await taskAPI.cancel(taskId)
+      
+      const task = tasks.value.find(t => t.id === taskId)
+      if (task) {
+        task.status = 'cancelled'
+      }
+    } catch (error) {
+      console.error('取消任务失败:', error)
+      throw error
     }
   }
 
   // 移除任务
-  const removeTask = (taskId) => {
+  const removeTask = async (taskId) => {
+    try {
+      await taskAPI.delete(taskId)
+    } catch (error) {
+      // 忽略删除失败
+    }
+    
     const index = tasks.value.findIndex(t => t.id === taskId)
     if (index > -1) {
       tasks.value.splice(index, 1)
@@ -86,9 +135,9 @@ export const useImageStore = defineStore('image', () => {
   }
 
   // 重试任务
-  const retryTask = (taskId) => {
+  const retryTask = async (taskId) => {
     const task = tasks.value.find(t => t.id === taskId)
-    if (!task || task.status !== 'failed') return
+    if (!task) return
 
     const params = {
       prompt: task.prompt,
@@ -96,13 +145,14 @@ export const useImageStore = defineStore('image', () => {
       imageSize: task.imageSize
     }
 
-    task.status = 'pending'
-    task.progress = 0
-    task.error = null
-
-    executeTask(taskId, params)
+    // 先移除旧任务
+    await removeTask(taskId)
+    
+    // 创建新任务
+    await createTask(params)
   }
 
+  // 删除图片
   const deleteImage = async (id) => {
     try {
       await imageAPI.delete(id)
@@ -113,14 +163,25 @@ export const useImageStore = defineStore('image', () => {
     }
   }
 
+  // 初始化
+  const init = async () => {
+    await Promise.all([fetchImages(), fetchTasks()])
+    startPolling()
+  }
+
   return {
     images,
     loading,
     tasks,
     fetchImages,
+    fetchTasks,
     createTask,
+    cancelTask,
     removeTask,
     retryTask,
-    deleteImage
+    deleteImage,
+    init,
+    startPolling,
+    stopPolling
   }
 })

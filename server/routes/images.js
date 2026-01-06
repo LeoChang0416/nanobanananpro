@@ -1,18 +1,29 @@
 import express from 'express'
-import { generateImage, getImages, getImageById, deleteImage } from '../controllers/imageController.js'
+import { 
+  generateImage, 
+  getImages, 
+  getImageById, 
+  deleteImage,
+  getTasks,
+  getTaskById,
+  cancelTask,
+  deleteTaskById
+} from '../controllers/imageController.js'
 
 const router = express.Router()
 
 // 生成图片
 router.post('/generate', generateImage)
 
-// 获取图片列表
+// 任务管理
+router.get('/tasks', getTasks)
+router.get('/tasks/:id', getTaskById)
+router.post('/tasks/:id/cancel', cancelTask)
+router.delete('/tasks/:id', deleteTaskById)
+
+// 图片管理
 router.get('/images', getImages)
-
-// 获取图片详情
 router.get('/images/:id', getImageById)
-
-// 删除图片
 router.delete('/images/:id', deleteImage)
 
 export default router

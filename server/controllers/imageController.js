@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { callNanoBananaAPI } from '../services/apiService.js'
+import taskManager from '../services/taskManager.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -23,25 +24,60 @@ const writeMetadata = (data) => {
   fs.writeFileSync(METADATA_FILE, JSON.stringify(data, null, 2))
 }
 
-// 生成图片
+// 生成图片（异步，立即返回任务ID）
 export const generateImage = async (req, res) => {
   try {
     const { prompt, aspectRatio = 'auto', imageSize = '1K', urls } = req.body
-    console.log('收到生图请求:', { prompt, aspectRatio, imageSize, urlsCount: urls?.length || 0 })
-
+    
     if (!prompt) {
       return res.status(400).json({ error: '缺少prompt参数' })
     }
 
-    // 调用Nano Banana Pro API
-    console.log('开始调用API...')
-    const result = await callNanoBananaAPI({
-      prompt,
-      aspectRatio,
-      imageSize,
-      urls
+    // 创建任务
+    const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const task = taskManager.createTask(taskId, { prompt, aspectRatio, imageSize, urls })
+    
+    console.log('创建任务:', taskId, { prompt: prompt.substring(0, 50), aspectRatio, imageSize, urlsCount: urls?.length || 0 })
+
+    // 立即返回任务ID
+    res.json({
+      success: true,
+      taskId,
+      task
     })
-    console.log('API返回结果:', result)
+
+    // 异步执行生成
+    executeGeneration(taskId, { prompt, aspectRatio, imageSize, urls })
+    
+  } catch (error) {
+    console.error('创建任务失败:', error)
+    res.status(500).json({ 
+      error: '创建任务失败', 
+      message: error.message 
+    })
+  }
+}
+
+// 异步执行生成任务
+const executeGeneration = async (taskId, params) => {
+  try {
+    taskManager.updateTask(taskId, { status: 'running', progress: 5 })
+
+    // 进度回调
+    const onProgress = (progress, status) => {
+      // 检查是否被取消
+      if (taskManager.isTaskCancelled(taskId)) {
+        throw new Error('任务已取消')
+      }
+      taskManager.updateTask(taskId, { progress, status: status || 'running' })
+    }
+
+    // 取消检查
+    const isCancelled = () => taskManager.isTaskCancelled(taskId)
+
+    console.log('开始执行任务:', taskId)
+    const result = await callNanoBananaAPI(params, onProgress, isCancelled)
+    console.log('任务完成:', taskId)
 
     // 保存图片到本地
     const images = []
@@ -53,22 +89,23 @@ export const generateImage = async (req, res) => {
       const filename = `${id}.png`
       const filepath = path.join(STORAGE_DIR, filename)
 
-      // 下载图片并保存到本地
       if (imageData.url) {
         try {
           const response = await fetch(imageData.url)
+          if (!response.ok) throw new Error(`下载失败: ${response.status}`)
           const buffer = Buffer.from(await response.arrayBuffer())
           fs.writeFileSync(filepath, buffer)
         } catch (downloadError) {
           console.error('下载图片失败:', downloadError)
+          throw new Error('图片下载失败，请重试')
         }
       }
 
       const imageRecord = {
         id,
-        prompt,
-        aspectRatio,
-        imageSize,
+        prompt: params.prompt,
+        aspectRatio: params.aspectRatio,
+        imageSize: params.imageSize,
         filename,
         url: `/storage/images/${filename}`,
         remoteUrl: imageData.url,
@@ -81,17 +118,85 @@ export const generateImage = async (req, res) => {
 
     writeMetadata(metadata)
 
+    taskManager.updateTask(taskId, {
+      status: 'succeeded',
+      progress: 100,
+      result: { images }
+    })
+
+  } catch (error) {
+    console.error('任务执行失败:', taskId, error.message)
+    taskManager.updateTask(taskId, {
+      status: error.message === '任务已取消' ? 'cancelled' : 'failed',
+      progress: 0,
+      error: error.message
+    })
+  }
+}
+
+// 获取所有任务
+export const getTasks = (req, res) => {
+  try {
+    const tasks = taskManager.getAllTasks()
     res.json({
       success: true,
-      images,
-      message: '生成成功'
+      tasks
     })
   } catch (error) {
-    console.error('生成图片失败:', error)
-    res.status(500).json({ 
-      error: '生成失败', 
-      message: error.message 
+    console.error('获取任务列表失败:', error)
+    res.status(500).json({ error: '获取失败' })
+  }
+}
+
+// 获取单个任务状态
+export const getTaskById = (req, res) => {
+  try {
+    const { id } = req.params
+    const task = taskManager.getTask(id)
+    
+    if (!task) {
+      return res.status(404).json({ error: '任务不存在' })
+    }
+
+    res.json({
+      success: true,
+      task
     })
+  } catch (error) {
+    console.error('获取任务详情失败:', error)
+    res.status(500).json({ error: '获取失败' })
+  }
+}
+
+// 取消任务
+export const cancelTask = (req, res) => {
+  try {
+    const { id } = req.params
+    const success = taskManager.cancelTask(id)
+    
+    if (!success) {
+      return res.status(400).json({ error: '任务无法取消（可能已完成或不存在）' })
+    }
+
+    res.json({
+      success: true,
+      message: '任务已取消'
+    })
+  } catch (error) {
+    console.error('取消任务失败:', error)
+    res.status(500).json({ error: '取消失败' })
+  }
+}
+
+// 删除任务
+export const deleteTaskById = (req, res) => {
+  try {
+    const { id } = req.params
+    taskManager.deleteTask(id)
+    res.json({ success: true, message: '任务已删除' })
+  } catch (error) {
+    console.error('删除任务失败:', error)
+    res.status(500).json({ error: '删除失败' })
   }
 }
 
@@ -145,12 +250,10 @@ export const deleteImage = (req, res) => {
     const image = metadata[imageIndex]
     const filepath = path.join(STORAGE_DIR, image.filename)
 
-    // 删除文件
     if (fs.existsSync(filepath)) {
       fs.unlinkSync(filepath)
     }
 
-    // 删除元数据记录
     metadata.splice(imageIndex, 1)
     writeMetadata(metadata)
 
@@ -163,4 +266,3 @@ export const deleteImage = (req, res) => {
     res.status(500).json({ error: '删除失败' })
   }
 }
-

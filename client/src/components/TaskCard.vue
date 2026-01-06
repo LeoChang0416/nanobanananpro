@@ -6,9 +6,23 @@
         <span v-else-if="task.status === 'running'" class="status-icon spinning">🔄</span>
         <span v-else-if="task.status === 'succeeded'" class="status-icon">✅</span>
         <span v-else-if="task.status === 'failed'" class="status-icon">❌</span>
+        <span v-else-if="task.status === 'cancelled'" class="status-icon">🚫</span>
         {{ statusText }}
+        <span v-if="task.status === 'running' && task.progress > 0" class="progress-text">{{ task.progress }}%</span>
       </span>
-      <button v-if="task.status === 'failed'" class="close-btn" @click="$emit('remove', task.id)">×</button>
+      <div class="task-actions">
+        <button 
+          v-if="task.status === 'pending' || task.status === 'running'" 
+          class="cancel-btn" 
+          @click="$emit('cancel', task.id)"
+          title="取消任务"
+        >取消</button>
+        <button 
+          v-if="task.status === 'failed' || task.status === 'cancelled' || task.status === 'succeeded'" 
+          class="close-btn" 
+          @click="$emit('remove', task.id)"
+        >×</button>
+      </div>
     </div>
     
     <div class="task-prompt">{{ truncatedPrompt }}</div>
@@ -16,15 +30,20 @@
     <div class="task-meta">
       <span>{{ task.aspectRatio }}</span>
       <span>{{ task.imageSize }}</span>
+      <span v-if="task.hasReferenceImages">含参考图</span>
     </div>
 
-    <div v-if="task.status === 'running'" class="progress-bar">
+    <div v-if="task.status === 'running' || task.status === 'pending'" class="progress-bar">
       <div class="progress-fill" :style="{ width: task.progress + '%' }"></div>
     </div>
 
     <div v-if="task.status === 'failed'" class="task-error">
       <p>{{ task.error }}</p>
       <button class="retry-btn" @click="$emit('retry', task.id)">重试</button>
+    </div>
+
+    <div v-if="task.status === 'cancelled'" class="task-cancelled">
+      <p>任务已取消</p>
     </div>
   </div>
 </template>
@@ -39,14 +58,15 @@ const props = defineProps({
   }
 })
 
-defineEmits(['remove', 'retry'])
+defineEmits(['remove', 'retry', 'cancel'])
 
 const statusText = computed(() => {
   const map = {
     pending: '排队中',
     running: '生成中',
     succeeded: '完成',
-    failed: '失败'
+    failed: '失败',
+    cancelled: '已取消'
   }
   return map[props.task.status] || props.task.status
 })
@@ -85,6 +105,12 @@ const truncatedPrompt = computed(() => {
   background: var(--color-error-light);
 }
 
+.task-card.cancelled {
+  border-left-color: var(--color-text-tertiary);
+  background: var(--color-bg-container);
+  opacity: 0.7;
+}
+
 .task-header {
   display: flex;
   justify-content: space-between;
@@ -101,6 +127,12 @@ const truncatedPrompt = computed(() => {
   color: var(--color-text-secondary);
 }
 
+.progress-text {
+  margin-left: 4px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
 .status-icon {
   font-size: 14px;
 }
@@ -112,6 +144,25 @@ const truncatedPrompt = computed(() => {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+.task-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.cancel-btn {
+  font-size: 12px;
+  padding: 2px 8px;
+  background: var(--color-warning);
+  color: white;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+
+.cancel-btn:hover {
+  opacity: 0.8;
 }
 
 .close-btn {
@@ -184,6 +235,15 @@ const truncatedPrompt = computed(() => {
 
 .retry-btn:hover {
   opacity: 0.9;
+}
+
+.task-cancelled {
+  margin-top: var(--spacing-sm);
+}
+
+.task-cancelled p {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
 }
 </style>
 

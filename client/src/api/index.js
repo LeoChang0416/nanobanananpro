@@ -13,19 +13,19 @@ api.interceptors.response.use(
   }
 )
 
-// API接口配置
+// 图片API
 export const imageAPI = {
-  // 生成图片
-  // params: { prompt, aspectRatio, imageSize, urls }
   generate: (params) => api.post('/generate', params),
-  
-  // 获取图片列表
   getList: (params) => api.get('/images', { params }),
-  
-  // 获取图片详情
   getDetail: (id) => api.get(`/images/${id}`),
-  
-  // 删除图片
   delete: (id) => api.delete(`/images/${id}`)
+}
+
+// 任务API
+export const taskAPI = {
+  getAll: () => api.get('/tasks'),
+  getById: (id) => api.get(`/tasks/${id}`),
+  cancel: (id) => api.post(`/tasks/${id}/cancel`),
+  delete: (id) => api.delete(`/tasks/${id}`)
 }
 
