@@ -122,22 +122,27 @@ const pollForResult = async (taskId, maxRetries = 150, interval = 2000) => {
 
       if (data.status === 'failed') {
         const errorMsg = data.failure_reason || data.error || '生图失败'
+        
+        // 内容审核失败 - 立即停止，不重试
+        if (errorMsg === 'output_moderation' || errorMsg === 'input_moderation') {
+          console.error('内容审核失败，停止轮询:', errorMsg)
+          throw new Error('内容审核未通过，请修改提示词或参考图')
+        }
+        
+        // "error"类型 - API建议重试，不立即失败
+        if (errorMsg === 'error') {
+          console.warn(`任务失败(error)，将重试... (第${i + 1}次)`)
+          continue // 继续轮询，不抛出错误
+        }
+        
+        // 其他未知失败
         console.error('任务失败，停止轮询:', errorMsg)
         throw new Error(errorMsg)
       }
 
     } catch (error) {
-      // 如果是明确的失败状态，直接抛出不再重试
-      if (error.message === 'output_moderation' || 
-          error.message === 'input_moderation' || 
-          error.message.includes('moderation')) {
-        throw new Error('内容审核未通过，请修改提示词或参考图')
-      }
-      
-      // 其他明确的错误类型也直接失败
-      if (error.message === 'error' || 
-          error.message.includes('生图失败') ||
-          error.message.includes('Invalid')) {
+      // 如果是明确的审核失败，直接抛出不再重试
+      if (error.message.includes('审核')) {
         throw error
       }
       
