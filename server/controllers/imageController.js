@@ -26,8 +26,8 @@ const writeMetadata = (data) => {
 // 生成图片
 export const generateImage = async (req, res) => {
   try {
-    const { prompt, aspectRatio = 'auto', imageSize = '1K' } = req.body
-    console.log('收到生图请求:', { prompt, aspectRatio, imageSize })
+    const { prompt, aspectRatio = 'auto', imageSize = '1K', urls } = req.body
+    console.log('收到生图请求:', { prompt, aspectRatio, imageSize, urlsCount: urls?.length || 0 })
 
     if (!prompt) {
       return res.status(400).json({ error: '缺少prompt参数' })
@@ -38,7 +38,8 @@ export const generateImage = async (req, res) => {
     const result = await callNanoBananaAPI({
       prompt,
       aspectRatio,
-      imageSize
+      imageSize,
+      urls
     })
     console.log('API返回结果:', result)
 

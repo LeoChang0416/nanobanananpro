@@ -15,6 +15,7 @@ const API_CONFIG = {
  * @param {string} params.prompt - 提示词
  * @param {string} params.aspectRatio - 图片比例
  * @param {string} params.imageSize - 图片分辨率
+ * @param {string[]} params.urls - 参考图URL或Base64数组（最多20张）
  * @returns {Promise<Object>} API响应
  */
 export const callNanoBananaAPI = async (params) => {
@@ -27,16 +28,25 @@ export const callNanoBananaAPI = async (params) => {
 
   try {
     console.log('发起API请求到:', `${API_CONFIG.host}/v1/draw/nano-banana`)
+    
+    const requestBody = {
+      model: 'nano-banana-pro',
+      prompt: params.prompt,
+      aspectRatio: params.aspectRatio || 'auto',
+      imageSize: params.imageSize || '1K',
+      webHook: '-1'
+    }
+    
+    // 添加参考图urls（如果有）
+    if (params.urls && params.urls.length > 0) {
+      requestBody.urls = params.urls.slice(0, 20)
+      console.log('包含参考图数量:', requestBody.urls.length)
+    }
+    
     // 发起生图请求，使用webHook="-1"立即返回任务ID
     const response = await axios.post(
       `${API_CONFIG.host}/v1/draw/nano-banana`,
-      {
-        model: 'nano-banana-pro',
-        prompt: params.prompt,
-        aspectRatio: params.aspectRatio || 'auto',
-        imageSize: params.imageSize || '1K',
-        webHook: '-1'
-      },
+      requestBody,
       {
         headers: {
           'Authorization': `Bearer ${API_CONFIG.key}`,

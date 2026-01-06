@@ -7,6 +7,34 @@
     
     <div class="form">
       <div class="form-group">
+        <label class="label">参考图（可选，最多20张）</label>
+        <div class="upload-area" @click="triggerUpload" @dragover.prevent @drop.prevent="handleDrop">
+          <input 
+            ref="fileInputRef"
+            type="file" 
+            accept="image/jpeg,image/jpg,image/png,image/webp"
+            multiple
+            class="file-input"
+            @change="handleFileSelect"
+          />
+          <div v-if="referenceImages.length === 0" class="upload-placeholder">
+            <span class="upload-icon">📷</span>
+            <p>点击或拖拽上传参考图</p>
+            <p class="upload-hint">支持 JPG、PNG、WEBP 格式</p>
+          </div>
+          <div v-else class="preview-grid">
+            <div v-for="(img, index) in referenceImages" :key="index" class="preview-item">
+              <img :src="img.preview" :alt="'参考图 ' + (index + 1)" />
+              <button class="remove-btn" @click.stop="removeImage(index)">×</button>
+            </div>
+            <div v-if="referenceImages.length < 20" class="add-more" @click.stop="triggerUpload">
+              <span>+</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
         <label class="label">描述</label>
         <textarea 
           ref="textareaRef"
@@ -58,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref } from 'vue'
 
 const emit = defineEmits(['generate'])
 
@@ -67,6 +95,56 @@ const aspectRatio = ref('auto')
 const imageSize = ref('1K')
 const loading = ref(false)
 const textareaRef = ref(null)
+const fileInputRef = ref(null)
+const referenceImages = ref([])
+
+const MAX_IMAGES = 20
+
+const triggerUpload = () => {
+  fileInputRef.value?.click()
+}
+
+const handleFileSelect = (e) => {
+  const files = Array.from(e.target.files || [])
+  processFiles(files)
+  e.target.value = ''
+}
+
+const handleDrop = (e) => {
+  const files = Array.from(e.dataTransfer.files || [])
+  processFiles(files)
+}
+
+const processFiles = async (files) => {
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+  const validFiles = files.filter(f => validTypes.includes(f.type))
+  
+  const remaining = MAX_IMAGES - referenceImages.value.length
+  const filesToProcess = validFiles.slice(0, remaining)
+  
+  for (const file of filesToProcess) {
+    const base64 = await fileToBase64(file)
+    referenceImages.value.push({
+      file,
+      preview: URL.createObjectURL(file),
+      base64
+    })
+  }
+}
+
+const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+const removeImage = (index) => {
+  URL.revokeObjectURL(referenceImages.value[index].preview)
+  referenceImages.value.splice(index, 1)
+}
 
 const autoResize = () => {
   const el = textareaRef.value
@@ -79,10 +157,14 @@ const handleGenerate = () => {
   if (!prompt.value.trim()) return
   
   loading.value = true
+  
+  const urls = referenceImages.value.map(img => img.base64)
+  
   emit('generate', {
     prompt: prompt.value,
     aspectRatio: aspectRatio.value,
-    imageSize: imageSize.value
+    imageSize: imageSize.value,
+    urls: urls.length > 0 ? urls : undefined
   })
   
   setTimeout(() => {
@@ -139,6 +221,101 @@ const handleGenerate = () => {
   font-weight: 500;
   color: #333333 !important;
   display: block;
+}
+
+.upload-area {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 120px;
+}
+
+.upload-area:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.file-input {
+  display: none;
+}
+
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  color: var(--color-text-tertiary);
+}
+
+.upload-icon {
+  font-size: 32px;
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: var(--color-text-disabled);
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.preview-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.remove-btn:hover {
+  background: var(--color-error);
+}
+
+.add-more {
+  aspect-ratio: 1;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-more:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .textarea,

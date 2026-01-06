@@ -16,7 +16,7 @@ api.interceptors.response.use(
 // API接口配置
 export const imageAPI = {
   // 生成图片
-  // params: { prompt, aspectRatio, imageSize }
+  // params: { prompt, aspectRatio, imageSize, urls }
   generate: (params) => api.post('/generate', params),
   
   // 获取图片列表
