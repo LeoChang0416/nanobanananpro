@@ -4,7 +4,10 @@
     
     <main class="main-content">
       <div class="container">
-        <GeneratePanel @generate="handleGenerate" />
+        <GeneratePanel 
+          :loading="store.generating" 
+          @generate="handleGenerate" 
+        />
         
         <section v-if="store.images.length > 0" class="recent-section">
           <h3 class="section-title">最近生成</h3>
@@ -47,8 +50,11 @@ const recentImages = computed(() => store.images.slice(0, 8))
 const handleGenerate = async (params) => {
   try {
     await store.generateImage(params)
+    alert('生成成功！')
   } catch (error) {
-    alert('生成失败，请稍后重试')
+    console.error('生成失败:', error)
+    const errorMsg = error.response?.data?.message || error.message || '生成失败'
+    alert(`生成失败：${errorMsg}\n\n${errorMsg.includes('审核') ? '建议：\n- 修改提示词避免敏感内容\n- 更换参考图\n- 简化描述' : '请稍后重试'}`)
   }
 }
 

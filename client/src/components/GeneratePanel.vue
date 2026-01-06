@@ -81,6 +81,10 @@
         <span v-if="loading" class="loading-icon">⏳</span>
         <span>{{ loading ? '生成中...' : '开始生成' }}</span>
       </button>
+      <div v-if="loading" class="generating-tip">
+        <p>正在生成中，请耐心等待...</p>
+        <p class="tip-sub">图片生成通常需要30秒到2分钟</p>
+      </div>
     </div>
   </div>
 </template>
@@ -88,12 +92,18 @@
 <script setup>
 import { ref } from 'vue'
 
+const props = defineProps({
+  loading: {
+    type: Boolean,
+    default: false
+  }
+})
+
 const emit = defineEmits(['generate'])
 
 const prompt = ref('')
 const aspectRatio = ref('auto')
 const imageSize = ref('1K')
-const loading = ref(false)
 const textareaRef = ref(null)
 const fileInputRef = ref(null)
 const referenceImages = ref([])
@@ -156,8 +166,6 @@ const autoResize = () => {
 const handleGenerate = () => {
   if (!prompt.value.trim()) return
   
-  loading.value = true
-  
   const urls = referenceImages.value.map(img => img.base64)
   
   emit('generate', {
@@ -166,10 +174,6 @@ const handleGenerate = () => {
     imageSize: imageSize.value,
     urls: urls.length > 0 ? urls : undefined
   })
-  
-  setTimeout(() => {
-    loading.value = false
-  }, 2000)
 }
 </script>
 
@@ -391,6 +395,27 @@ const handleGenerate = () => {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+.generating-tip {
+  text-align: center;
+  padding: var(--spacing-md);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-sm);
+  margin-top: var(--spacing-md);
+}
+
+.generating-tip p {
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.tip-sub {
+  font-size: 12px !important;
+  color: var(--color-text-tertiary) !important;
+  margin-top: var(--spacing-xs) !important;
 }
 </style>
 

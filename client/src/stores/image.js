@@ -22,9 +22,15 @@ export const useImageStore = defineStore('image', () => {
   const generateImage = async (params) => {
     generating.value = true
     try {
+      console.log('开始生成图片，参数:', params)
       const data = await imageAPI.generate(params)
-      if (data.image) {
-        images.value.unshift(data.image)
+      console.log('生成完成，返回数据:', data)
+      
+      if (data.images && data.images.length > 0) {
+        // API返回的是images数组
+        data.images.forEach(img => {
+          images.value.unshift(img)
+        })
       }
       return data
     } catch (error) {

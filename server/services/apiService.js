@@ -52,22 +52,33 @@ export const callNanoBananaAPI = async (params) => {
           'Authorization': `Bearer ${API_CONFIG.key}`,
           'Content-Type': 'application/json'
         },
-        timeout: 30000
+        timeout: 120000,
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity
       }
     )
 
+    console.log('API响应状态码:', response.status)
+    console.log('API响应数据:', JSON.stringify(response.data).substring(0, 500))
+
     if (response.data.code !== 0) {
+      console.error('API返回错误:', response.data)
       throw new Error(response.data.msg || '生图请求失败')
     }
 
     const taskId = response.data.data.id
+    console.log('获得任务ID:', taskId)
 
     // 轮询获取结果
+    console.log('开始轮询结果...')
     const result = await pollForResult(taskId)
+    console.log('轮询完成，获得结果')
     return result
 
   } catch (error) {
-    console.error('API调用失败:', error.message)
+    console.error('API调用失败 - 完整错误:', error)
+    console.error('错误消息:', error.message)
+    console.error('错误响应:', error.response?.data)
     throw new Error('API调用失败: ' + error.message)
   }
 }
@@ -76,8 +87,11 @@ export const callNanoBananaAPI = async (params) => {
  * 轮询获取生图结果
  */
 const pollForResult = async (taskId, maxRetries = 60, interval = 2000) => {
+  console.log(`开始轮询任务 ${taskId}，最多重试${maxRetries}次`)
+  
   for (let i = 0; i < maxRetries; i++) {
     await new Promise(resolve => setTimeout(resolve, interval))
+    console.log(`第 ${i + 1}/${maxRetries} 次轮询...`)
 
     try {
       const response = await axios.post(
@@ -93,8 +107,10 @@ const pollForResult = async (taskId, maxRetries = 60, interval = 2000) => {
       )
 
       const data = response.data.data || response.data
+      console.log(`任务状态: ${data.status}, 进度: ${data.progress}%`)
 
       if (data.status === 'succeeded') {
+        console.log('任务成功完成!')
         return {
           images: data.results.map(r => ({
             url: r.url,
@@ -104,16 +120,27 @@ const pollForResult = async (taskId, maxRetries = 60, interval = 2000) => {
       }
 
       if (data.status === 'failed') {
-        throw new Error(data.failure_reason || data.error || '生图失败')
+        const errorMsg = data.failure_reason || data.error || '生图失败'
+        console.error('任务失败，停止轮询:', errorMsg)
+        throw new Error(errorMsg)
       }
 
     } catch (error) {
+      // 如果是明确的失败状态，直接抛出不再重试
+      if (error.message === 'output_moderation' || 
+          error.message === 'input_moderation' || 
+          error.message.includes('moderation')) {
+        throw new Error('内容审核未通过，请修改提示词或参考图')
+      }
+      
+      console.error(`轮询出错 (第${i + 1}次):`, error.message)
       if (i === maxRetries - 1) {
         throw error
       }
     }
   }
 
+  console.error('轮询超时')
   throw new Error('生图超时')
 }
 
