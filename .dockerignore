@@ -1,0 +1,15 @@
+node_modules
+.git
+.gitignore
+*.md
+.env
+.DS_Store
+*.log
+client/node_modules
+server/node_modules
+server/storage/images/*
+server/storage/tasks.json
+.vscode
+.idea
+dist
+
