@@ -86,8 +86,9 @@ export const callNanoBananaAPI = async (params) => {
 /**
  * 轮询获取生图结果
  */
-const pollForResult = async (taskId, maxRetries = 60, interval = 2000) => {
-  console.log(`开始轮询任务 ${taskId}，最多重试${maxRetries}次`)
+const pollForResult = async (taskId, maxRetries = 150, interval = 2000) => {
+  // 150次 x 2秒 = 5分钟
+  console.log(`开始轮询任务 ${taskId}，最多重试${maxRetries}次（约5分钟）`)
   
   for (let i = 0; i < maxRetries; i++) {
     await new Promise(resolve => setTimeout(resolve, interval))

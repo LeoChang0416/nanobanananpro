@@ -10,10 +10,9 @@
         <label class="label">参考图（可选，最多20张）</label>
         <div 
           class="upload-area" 
-          :class="{ disabled: loading }"
-          @click="!loading && triggerUpload()" 
+          @click="triggerUpload" 
           @dragover.prevent 
-          @drop.prevent="!loading && handleDrop($event)"
+          @drop.prevent="handleDrop"
         >
           <input 
             ref="fileInputRef"
@@ -82,28 +81,16 @@
       <button 
         class="generate-btn" 
         @click="handleGenerate"
-        :disabled="!prompt.trim() || loading"
+        :disabled="!prompt.trim()"
       >
-        <span v-if="loading" class="loading-icon">⏳</span>
-        <span>{{ loading ? '生成中...' : '开始生成' }}</span>
+        <span>开始生成</span>
       </button>
-      <div v-if="loading" class="generating-tip">
-        <p>正在生成中，请耐心等待...</p>
-        <p class="tip-sub">图片生成通常需要30秒到2分钟</p>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-
-const props = defineProps({
-  loading: {
-    type: Boolean,
-    default: false
-  }
-})
 
 const emit = defineEmits(['generate'])
 
@@ -251,15 +238,9 @@ const handleGenerate = () => {
   min-height: 120px;
 }
 
-.upload-area:hover:not(.disabled) {
+.upload-area:hover {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
-}
-
-.upload-area.disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  pointer-events: none;
 }
 
 .file-input {
@@ -413,30 +394,5 @@ const handleGenerate = () => {
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.generating-tip {
-  text-align: center;
-  padding: var(--spacing-md);
-  background: var(--color-primary-soft);
-  border-radius: var(--radius-sm);
-  margin-top: var(--spacing-md);
-}
-
-.generating-tip p {
-  color: var(--color-primary);
-  font-size: 14px;
-  font-weight: 500;
-  margin: 0;
-}
-
-.tip-sub {
-  font-size: 12px !important;
-  color: var(--color-text-tertiary) !important;
-  margin-top: var(--spacing-xs) !important;
-}
 </style>
 

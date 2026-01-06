@@ -4,10 +4,21 @@
     
     <main class="main-content">
       <div class="container">
-        <GeneratePanel 
-          :loading="store.generating" 
-          @generate="handleGenerate" 
-        />
+        <GeneratePanel @generate="handleGenerate" />
+        
+        <!-- 任务队列 -->
+        <section v-if="store.tasks.length > 0" class="tasks-section">
+          <h3 class="section-title">生成任务</h3>
+          <div class="tasks-grid">
+            <TaskCard 
+              v-for="task in store.tasks" 
+              :key="task.id"
+              :task="task"
+              @remove="store.removeTask"
+              @retry="store.retryTask"
+            />
+          </div>
+        </section>
         
         <section v-if="store.images.length > 0" class="recent-section">
           <h3 class="section-title">最近生成</h3>
@@ -39,6 +50,7 @@ import AppHeader from '../components/AppHeader.vue'
 import GeneratePanel from '../components/GeneratePanel.vue'
 import ImageCard from '../components/ImageCard.vue'
 import ImageModal from '../components/ImageModal.vue'
+import TaskCard from '../components/TaskCard.vue'
 
 const store = useImageStore()
 
@@ -48,14 +60,8 @@ const selectedImage = ref(null)
 const recentImages = computed(() => store.images.slice(0, 8))
 
 const handleGenerate = async (params) => {
-  try {
-    await store.generateImage(params)
-    alert('生成成功！')
-  } catch (error) {
-    console.error('生成失败:', error)
-    const errorMsg = error.response?.data?.message || error.message || '生成失败'
-    alert(`生成失败：${errorMsg}\n\n${errorMsg.includes('审核') ? '建议：\n- 修改提示词避免敏感内容\n- 更换参考图\n- 简化描述' : '请稍后重试'}`)
-  }
+  // 创建任务，不阻塞，直接返回
+  store.createTask(params)
 }
 
 const handleView = (image) => {
@@ -94,8 +100,8 @@ onMounted(() => {
   padding: 0 var(--spacing-lg);
 }
 
-.recent-section {
-  margin-top: var(--spacing-2xl);
+.tasks-section {
+  margin-top: var(--spacing-xl);
 }
 
 .section-title {
@@ -105,10 +111,19 @@ onMounted(() => {
   margin-bottom: var(--spacing-lg);
 }
 
+.tasks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.recent-section {
+  margin-top: var(--spacing-2xl);
+}
+
 .image-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: var(--spacing-lg);
 }
 </style>
-
