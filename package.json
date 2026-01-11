@@ -1,0 +1,20 @@
+{
+  "name": "nano-banana-pro",
+  "version": "1.0.0",
+  "description": "AIGC生图平台",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "concurrently \"npm run server:stable\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "server:stable": "cd server && npm run start",
+    "client": "cd client && npm run dev",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "keywords": ["aigc", "image-generation"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+
